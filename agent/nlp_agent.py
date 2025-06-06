@@ -78,10 +78,28 @@ def preguntar_al_agente(df, pregunta_usuario):
     if GOOGLE_API_KEY == "TU_API_KEY_AQUI": # Mantener el check por si acaso
         return "Por favor, configura tu API key de Google AI en agent/nlp_agent.py", pd.DataFrame()
 
+    # Primero validamos si la pregunta es sobre videojuegos
+    prompt_validacion = f"""Eres un asistente que solo responde preguntas sobre videojuegos. 
+    Analiza la siguiente pregunta y responde SOLO con 'SI' si es sobre videojuegos o 'NO' si no lo es.
+    No des ninguna otra explicación, solo 'SI' o 'NO'.
+    
+    Pregunta: {pregunta_usuario}"""
+
+    try:
+        model = genai.GenerativeModel(MODEL_NAME)
+        response = model.generate_content(prompt_validacion)
+        
+        if hasattr(response, 'text') and response.text:
+            es_sobre_videojuegos = response.text.strip().upper() == 'SI'
+            if not es_sobre_videojuegos:
+                return "Lo siento, solo puedo responder preguntas relacionadas con videojuegos. Por favor, haz una pregunta sobre videojuegos.", pd.DataFrame()
+    except Exception as e:
+        # Si hay un error en la validación, continuamos con la pregunta original
+        pass
+
     info_dataset, resultados_df_relevante = buscar_info_relevante(df, pregunta_usuario)
 
     # Construir el prompt para el modelo
-    # Le indicamos al modelo que use la información proporcionada, enfatizando que es *información adicional*.
     prompt = f"Eres un asistente experto en videojuegos con acceso a información adicional de un dataset. Responde la siguiente pregunta usando tu conocimiento y la *información del dataset proporcionada*, si es relevante. Si la información del dataset no es suficiente, usa tu conocimiento general. \n\nInformación ADICIONAL del dataset:\n{info_dataset}\n\nPregunta: {pregunta_usuario}\nRespuesta:"
 
     respuesta_texto = ""
